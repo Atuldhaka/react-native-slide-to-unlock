@@ -10,8 +10,8 @@ export default class Slider extends Component {
     this.canReachEnd = true;
     this.totalWidth = 0;
     this.state = {
-      offsetX: new Animated.Value(0),
-      squareWidth: 0,
+      offsetX: new Animated.Value(props.isFromRight ? props.widthAccordingToOrientation:0),
+      squareWidth:  0,
     };
     this._panResponder = PanResponder.create({
       onStartShouldSetPanResponder: (evt, gestureState) => {
@@ -30,31 +30,51 @@ export default class Slider extends Component {
       onPanResponderMove: (evt, gestureState) => {
         if(!this.props.disableSliding) {
           const margin = this.totalWidth - this.state.squareWidth * 1.025;
-          if (gestureState.dx > 0 && gestureState.dx <= margin) {
-            this.setState({ offsetX: new Animated.Value(gestureState.dx) });
-          } else if (gestureState.dx > margin) {
-            this.onEndReached();
-            return;
+          if (this.props.isFromRight)
+          {
+            if (gestureState.dx < 0 && gestureState.dx >= -margin)
+            {
+              var newGestureStateDx = margin + gestureState.dx
+              this.setState({ offsetX: new Animated.Value(newGestureStateDx)});
+            }
+            else if (gestureState.dx < -margin)
+            {
+              console.warn("inside else if of is from right")
+              this.onEndReached(false);
+              return;   
+            }
+            
           }
+          else {
+            if (gestureState.dx > 0 && gestureState.dx <= margin) {
+              this.setState({ offsetX: new Animated.Value(gestureState.dx)});
+            } else if (gestureState.dx > margin) {
+              this.onEndReached(true);
+              return;
+            } 
+          }
+
+          
         }
       },
       onPanResponderTerminationRequest: (evt, gestureState) => true,
       onPanResponderRelease: (evt, gestureState) => {
-        this.resetBar();
+         this.resetBar();
         this.canReachEnd = true;
       },
       onShouldBlockNativeResponder: (evt, gestureState) => true,
     });
   }
 
-  onEndReached = () => {
-    this.canReachEnd && this.props.onEndReached();
+  onEndReached = (isMerged) => {
+    console.warn("in lib", isMerged)
+    this.canReachEnd && this.props.onEndReached(isMerged);
     this.canReachEnd = false;
-    this.resetBar();
+     this.resetBar();
   };
 
   resetBar() {
-    Animated.timing(this.state.offsetX, { toValue: 0 }).start();
+    Animated.timing(this.state.offsetX, { toValue: this.props.isFromRight?this.props.widthAccordingToOrientation: 0 }).start();
   }
 
   render() {
@@ -64,6 +84,7 @@ export default class Slider extends Component {
           this.totalWidth = event.nativeEvent.layout.width;
         }}
         style={[this.props.containerStyle, { alignItems: 'flex-start' }]}
+        //flexDirection:this.props.isFromRight? "row-reverse":"row"
       >
         <Animated.View
           onLayout={event => {
@@ -77,7 +98,9 @@ export default class Slider extends Component {
 
         <View
           style={[
-            { alignSelf: 'center', position: 'absolute', zIndex: -1 },
+            { position: 'absolute',left:this.props.isFromRight?0:this.props.widthAccordingToOrientation,zIndex: -1 },
+            //alignSelf: this.props.isFromRight?"flex-start": 'center',
+            //position: 'absolute',
             this.props.childrenContainer,
           ]}
         >
@@ -93,7 +116,7 @@ Slider.propTypes = {
   containerStyle: PropTypes.object,
   sliderElement: PropTypes.element,
   onEndReached: PropTypes.func,
-  disableSliding: PropTypes.bool,
+  disableSliding: PropTypes.bool
 };
 
 Slider.defaultProps = {
@@ -101,5 +124,7 @@ Slider.defaultProps = {
   containerStyle: {},
   sliderElement: <View style={{ width: 50, height: 50, backgroundColor: 'green' }} />,
   onEndReached: () => {},
-  disableSliding: false
+  disableSliding: false,
+  isFromRight: false,
+  widthAccordingToOrientation:undefined
 };
